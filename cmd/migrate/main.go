@@ -9,8 +9,8 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 	mysqlMigrate "github.com/golang-migrate/migrate/v4/database/mysql"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
-	"github.com/luisfucros/go-events-api-tutorial/configs"
-	"github.com/luisfucros/go-events-api-tutorial/database"
+	"github.com/luisfucros/go-events-api-tutorial/internal/configs"
+	"github.com/luisfucros/go-events-api-tutorial/internal/database"
 )
 
 func main() {
