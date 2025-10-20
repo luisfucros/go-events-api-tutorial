@@ -8,8 +8,8 @@ services:
     ports:
       - "3306:3306"
     environment:
-      MYSQL_ROOT_PASSWORD: mypassword
-      MYSQL_DATABASE: ecom
+      MYSQL_ROOT_PASSWORD: events_password
+      MYSQL_DATABASE: events
 
   adminer:
     image: adminer
