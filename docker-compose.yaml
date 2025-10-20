@@ -1,0 +1,21 @@
+services:
+  db:
+    image: mysql:8.0
+    healthcheck:
+      test: "exit 0"
+    volumes:
+      - db_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: mypassword
+      MYSQL_DATABASE: ecom
+
+  adminer:
+    image: adminer
+    container_name: adminer
+    ports:
+      - "9090:8080"
+
+volumes:
+  db_data:
