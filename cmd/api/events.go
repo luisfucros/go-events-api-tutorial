@@ -13,12 +13,13 @@ func (app *application) createEvent(c *gin.Context) {
 
 	if err := c.ShouldBindJSON(&event); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
 	}
 
 	err := app.models.Events.Insert(&event)
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create event"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -30,6 +31,7 @@ func (app *application) getAllEvents(c *gin.Context) {
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve events"})
+		return
 	}
 
 	c.JSON(http.StatusOK, events)
@@ -37,28 +39,32 @@ func (app *application) getAllEvents(c *gin.Context) {
 
 func (app *application) getEvent(c *gin.Context) {
 	idParam := c.Param("id")
-	id, err := strconv.ParseInt(idParam, 10, 64)
+	id, err := strconv.Atoi(idParam)
 
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid event ID"})
+		return
 	}
 
 	event, err := app.models.Events.Get(id)
 
-	if event != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Event not found"})
-	}
-
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve event"})
+		return
 	}
+
+	if event == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Event not found"})
+		return
+	}
+
 
 	c.JSON(http.StatusOK, event)
 }
 
 func (app *application) updateEvent(c *gin.Context) {
 	idParam := c.Param("id")
-	id, err := strconv.ParseInt(idParam, 10, 64)
+	id, err := strconv.Atoi(idParam)
 
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid event ID"})
@@ -67,12 +73,13 @@ func (app *application) updateEvent(c *gin.Context) {
 	existingEvent, err := app.models.Events.Get(id)
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve event"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	if existingEvent != nil {
+	if existingEvent == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Event not found"})
+		return
 	}
 
 	updatedEvent := &database.Event{}
@@ -94,7 +101,7 @@ func (app *application) updateEvent(c *gin.Context) {
 
 func (app *application) deleteEvent(c *gin.Context) {
 	idParam := c.Param("id")
-	id, err := strconv.ParseInt(idParam, 10, 64)
+	id, err := strconv.Atoi(idParam)
 
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid event ID"})

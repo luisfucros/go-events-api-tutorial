@@ -11,21 +11,36 @@ type EventModel struct {
 }
 
 type Event struct {
-	Id          int64  `json:"id"`
-	OwnerId     int64  `json:"owner_id" binding:"required"`
-	Name        string `json:"name" binding:"required",min=3`
-	Description string `json:"description" binding:"required",min=10`
-	Date        string `json:"date" binding:"required",datetime=2006-01-02`
-	Location    string `json:"location" binding:"required",min=3`
+	Id          int  `json:"id"`
+	OwnerId     int  `json:"ownerId" binding:"required"`
+	Name        string `json:"name" binding:"required,min=3"`
+	Description string `json:"description" binding:"required,min=10"`
+	Date        string `json:"date" binding:"required,datetime=2006-01-02"`
+	Location    string `json:"location" binding:"required,min=3"`
 }
 
 func (m *EventModel) Insert(event *Event) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	query := "INSERT INTO events (owner_id, name, description, date, location) VALUES ($1, $2, $3, $4, $5)"
+	query := "INSERT INTO events (owner_id, name, description, date, location) VALUES (?, ?, ?, ?, ?)"
 
-	return m.DB.QueryRowContext(ctx, query, event.OwnerId, event.Name, event.Description, event.Date, event.Location).Scan(&event.Id)
+	result, err := m.DB.ExecContext(ctx, query,
+		event.OwnerId, event.Name, event.Description, event.Date, event.Location,
+	)
+	
+	if err != nil {
+		return err
+	}
+
+	id, err := result.LastInsertId()
+	
+	if err != nil {
+		return err
+	}
+
+	event.Id = int(id)
+	return nil
 }
 
 func (m *EventModel) GetAll() ([]*Event, error) {
@@ -63,11 +78,11 @@ func (m *EventModel) GetAll() ([]*Event, error) {
 	return events, nil
 }
 
-func (m *EventModel) Get(id int64) (*Event, error) {
+func (m *EventModel) Get(id int) (*Event, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	query := "SELECT * FROM events WHERE id = $1"
+	query := "SELECT * FROM events WHERE id = ?"
 
 	var event Event
 	err := m.DB.QueryRowContext(ctx, query, id).Scan(&event.Id, &event.OwnerId, &event.Name, &event.Description, &event.Date, &event.Location)
@@ -86,9 +101,9 @@ func (m *EventModel) Update(event *Event) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	query := "UPDATE events SET name = $1, description = $2, date = $3, location = $4 WHERE id = $5"
+	query := "UPDATE events SET name = ?, description = ?, date = ?, location = ? WHERE id = ?"
 
-	_, err := m.DB.ExecContext(ctx, query, event.Name, event.Description, event.Date, event.Location)
+	_, err := m.DB.ExecContext(ctx, query, event.Name, event.Description, event.Date, event.Location, event.Id)
 
 	if err != nil {
 		return err
@@ -97,11 +112,11 @@ func (m *EventModel) Update(event *Event) error {
 	return nil
 }
 
-func (m *EventModel) Delete(id int64) error {
+func (m *EventModel) Delete(id int) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	query := "DELETE FROM events WHERE id = $1"
+	query := "DELETE FROM events WHERE id = ?"
 
 	_, err := m.DB.ExecContext(ctx, query, id)
 
