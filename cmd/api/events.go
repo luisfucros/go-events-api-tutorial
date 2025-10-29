@@ -73,7 +73,7 @@ func (app *application) updateEvent(c *gin.Context) {
 	existingEvent, err := app.models.Events.Get(id)
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Something went wrong"})
 		return
 	}
 
