@@ -67,7 +67,7 @@ func (m *AttendeeModel) GetAttendeesByEvent(eventId int) ([]*User, error) {
 		SELECT u.id, u.name, u.email
 		FROM users u
 		JOIN attendees a ON u.id = a.user_id
-		where a.event_id = $1
+		where a.event_id = ?
 	`
 
 	rows, err := m.DB.QueryContext(ctx, query, eventId)

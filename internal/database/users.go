@@ -45,7 +45,7 @@ func (m *UserModel) Get(id int) (*User, error) {
 	query := "SELECT * FROM users WHERE Id = ?"
 
 	var user User
-	err := m.DB.QueryRowContext(ctx, query, id).Scan(&user.Id, &user.Email, &user.Name, &user.Password)
+	err := m.DB.QueryRowContext(ctx, query, id).Scan(&user.Id, &user.Email, &user.Name, &user.Password, &user.CreatedAt)
 
 	if err != nil {
 		if err == sql.ErrNoRows {

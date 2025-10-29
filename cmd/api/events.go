@@ -149,7 +149,7 @@ func (app *application) addAttendeeToEvent(c *gin.Context) {
 		return
 	}
 
-	existingAttendee, err := app.models.Attendees.GetByEventAndAttendee(event.Id, userToAdd.Id)
+	existingAttendee, err := app.models.Attendees.GetByEventAndAttendee(event.Id, int(userToAdd.Id))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve attendee"})
 		return
@@ -161,7 +161,7 @@ func (app *application) addAttendeeToEvent(c *gin.Context) {
 
 	attendee := database.Attendee{
 		EventId: event.Id,
-		UserId: userToAdd.Id,
+		UserId: int(userToAdd.Id),
 	}
 
 	_, err = app.models.Attendees.Insert(&attendee)
