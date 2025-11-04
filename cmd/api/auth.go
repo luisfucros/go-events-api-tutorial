@@ -2,16 +2,65 @@ package main
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
-	"golang.org/x/crypto/bcrypt"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/luisfucros/go-events-api-tutorial/internal/database"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type registerRequest struct {
-	Email     string `json:"email" binding:"required,email"`
-	Password  string `json:"password" binding:"required,min=8,max=72"`
-	Name      string `json:"name" binding:"required,min=2"`
+	Email    string `json:"email" binding:"required,email"`
+	Password string `json:"password" binding:"required,min=8,max=72"`
+	Name     string `json:"name" binding:"required,min=2"`
+}
+
+type loginRequest struct {
+	Email    string `json:"email" binding:"required,email"`
+	Password string `json:"password" binding:"required,min=8,max=72"`
+}
+
+type loginResponse struct {
+	Token string `json:"token"`
+}
+
+func (app *application) login(c *gin.Context) {
+	var auth loginRequest
+
+	if err := c.ShouldBindJSON(&auth); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Something went wrong"})
+		return
+	}
+
+	existingUser, err := app.models.Users.GetByEmail(auth.Email)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if existingUser == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
+		return
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(existingUser.Password), []byte(auth.Password))
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
+		return
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"userId": existingUser.Id,
+		"expr":   time.Now().Add(time.Hour * 72).Unix(),
+	})
+
+	tokenString, err := token.SignedString([]byte(app.JWTSecret))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error generating token"})
+		return
+	}
+	c.JSON(http.StatusOK, loginResponse{Token: tokenString})
 }
 
 func (app *application) registerUser(c *gin.Context) {
@@ -23,7 +72,7 @@ func (app *application) registerUser(c *gin.Context) {
 	}
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(register.Password), bcrypt.DefaultCost)
-	
+
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "something went wrong"})
 		return
@@ -31,8 +80,8 @@ func (app *application) registerUser(c *gin.Context) {
 
 	register.Password = string(hashedPassword)
 	user := database.User{
-		Email: register.Email,
-		Name: register.Name,
+		Email:    register.Email,
+		Name:     register.Name,
 		Password: register.Password,
 	}
 
