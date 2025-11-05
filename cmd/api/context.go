@@ -5,7 +5,7 @@ import (
 	"github.com/luisfucros/go-events-api-tutorial/internal/database"
 )
 
-func (app *application) getUserFromContext(c *gin.Context) *database.User {
+func (app *application) GetUserFromContext(c *gin.Context) *database.User {
 	contextUser, exist := c.Get("user")
 	if !exist {
 		return &database.User{}
