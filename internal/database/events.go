@@ -11,8 +11,8 @@ type EventModel struct {
 }
 
 type Event struct {
-	Id          int  `json:"id"`
-	OwnerId     int  `json:"ownerId"`
+	Id          int64  `json:"id"`
+	OwnerId     int64  `json:"ownerId"`
 	Name        string `json:"name" binding:"required,min=3"`
 	Description string `json:"description" binding:"required,min=10"`
 	Date        string `json:"date" binding:"required,datetime=2006-01-02"`
@@ -39,7 +39,7 @@ func (m *EventModel) Insert(event *Event) error {
 		return err
 	}
 
-	event.Id = int(id)
+	event.Id = id
 	return nil
 }
 
@@ -78,7 +78,7 @@ func (m *EventModel) GetAll() ([]*Event, error) {
 	return events, nil
 }
 
-func (m *EventModel) Get(id int) (*Event, error) {
+func (m *EventModel) Get(id int64) (*Event, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
@@ -112,7 +112,7 @@ func (m *EventModel) Update(event *Event) error {
 	return nil
 }
 
-func (m *EventModel) Delete(id int) error {
+func (m *EventModel) Delete(id int64) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 

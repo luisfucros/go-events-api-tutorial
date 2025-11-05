@@ -45,7 +45,7 @@ func (app *application) AuthMiddleware() gin.HandlerFunc {
 
 		userId := claims["userId"].(float64)
 
-		user, err := app.models.Users.Get(int(userId))
+		user, err := app.models.Users.Get(int64(userId))
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized access"})
 			c.Abort()

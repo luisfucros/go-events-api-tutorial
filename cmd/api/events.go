@@ -17,7 +17,7 @@ func (app *application) createEvent(c *gin.Context) {
 	}
 
 	user := app.GetUserFromContext(c)
-	event.OwnerId = int(user.Id)
+	event.OwnerId = user.Id
 	err := app.models.Events.Insert(&event)
 
 	if err != nil {
@@ -41,7 +41,7 @@ func (app *application) getAllEvents(c *gin.Context) {
 
 func (app *application) getEvent(c *gin.Context) {
 	idParam := c.Param("id")
-	id, err := strconv.Atoi(idParam)
+	id, err := strconv.ParseInt(idParam, 10, 64)
 
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid event ID"})
@@ -66,7 +66,7 @@ func (app *application) getEvent(c *gin.Context) {
 
 func (app *application) updateEvent(c *gin.Context) {
 	idParam := c.Param("id")
-	id, err := strconv.Atoi(idParam)
+	id, err := strconv.ParseInt(idParam, 10, 64)
 
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid event ID"})
@@ -85,7 +85,7 @@ func (app *application) updateEvent(c *gin.Context) {
 		return
 	}
 
-	if existingEvent.OwnerId != int(user.Id) {
+	if existingEvent.OwnerId != user.Id {
 		c.JSON(http.StatusForbidden, gin.H{"error": "Not authorized to update this event"})
 		return
 	}
@@ -109,7 +109,7 @@ func (app *application) updateEvent(c *gin.Context) {
 
 func (app *application) deleteEvent(c *gin.Context) {
 	idParam := c.Param("id")
-	id, err := strconv.Atoi(idParam)
+	id, err := strconv.ParseInt(idParam, 10, 64)
 
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid event ID"})
@@ -127,7 +127,7 @@ func (app *application) deleteEvent(c *gin.Context) {
 		return
 	}
 
-	if existingEvent.OwnerId != int(user.Id) {
+	if existingEvent.OwnerId != user.Id {
 		c.JSON(http.StatusForbidden, gin.H{"error": "Not authorized to delete this event"})
 		return
 	}
@@ -141,14 +141,14 @@ func (app *application) deleteEvent(c *gin.Context) {
 
 func (app *application) addAttendeeToEvent(c *gin.Context) {
 	idParam := c.Param("id")
-	eventId, err := strconv.Atoi(idParam)
+	eventId, err := strconv.ParseInt(idParam, 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid event ID"})
 		return
 	}
 
 	idParam = c.Param("userId")
-	userId, err := strconv.Atoi(idParam)
+	userId, err := strconv.ParseInt(idParam, 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 		return
@@ -175,12 +175,12 @@ func (app *application) addAttendeeToEvent(c *gin.Context) {
 	}
 
 	user := app.GetUserFromContext(c)
-	if event.OwnerId != int(user.Id) {
+	if event.OwnerId != user.Id {
 		c.JSON(http.StatusForbidden, gin.H{"error": "Not authorized to add an attendee"})
 		return
 	}
 
-	existingAttendee, err := app.models.Attendees.GetByEventAndAttendee(event.Id, int(userToAdd.Id))
+	existingAttendee, err := app.models.Attendees.GetByEventAndAttendee(event.Id, userToAdd.Id)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve attendee"})
 		return
@@ -192,7 +192,7 @@ func (app *application) addAttendeeToEvent(c *gin.Context) {
 
 	attendee := database.Attendee{
 		EventId: event.Id,
-		UserId: int(userToAdd.Id),
+		UserId: userToAdd.Id,
 	}
 
 	_, err = app.models.Attendees.Insert(&attendee)
@@ -206,7 +206,7 @@ func (app *application) addAttendeeToEvent(c *gin.Context) {
 
 func (app *application) getAttendeesForEvent(c *gin.Context) {
 	idParam := c.Param("id")
-	eventId, err := strconv.Atoi(idParam)
+	eventId, err := strconv.ParseInt(idParam, 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid event ID"})
 		return
@@ -223,14 +223,14 @@ func (app *application) getAttendeesForEvent(c *gin.Context) {
 
 func (app *application) deleteAttendeeFromEvent(c *gin.Context) {
 	idParam := c.Param("id")
-	eventId, err := strconv.Atoi(idParam)
+	eventId, err := strconv.ParseInt(idParam, 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid event ID"})
 		return
 	}
 
 	idParam = c.Param("userId")
-	userId, err := strconv.Atoi(idParam)
+	userId, err := strconv.ParseInt(idParam, 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 		return
@@ -249,7 +249,7 @@ func (app *application) deleteAttendeeFromEvent(c *gin.Context) {
 		return
 	}
 
-	if event.OwnerId != int(user.Id) {
+	if event.OwnerId != user.Id {
 		c.JSON(http.StatusForbidden, gin.H{"error": "Not authorized to delete an attendee from event"})
 		return
 	}
@@ -265,7 +265,7 @@ func (app *application) deleteAttendeeFromEvent(c *gin.Context) {
 
 func (app *application) getEventsByAttendee(c *gin.Context) {
 	idParam := c.Param("id")
-	id, err := strconv.Atoi(idParam)
+	id, err := strconv.ParseInt(idParam, 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid attendee ID"})
 		return

@@ -12,9 +12,9 @@ type AttendeeModel struct {
 }
 
 type Attendee struct {
-	Id         int   `json:"id"`
-	UserId     int   `json:"user_id"`
-	EventId    int   `json:"event_id"`      
+	Id         int64   `json:"id"`
+	UserId     int64   `json:"user_id"`
+	EventId    int64   `json:"event_id"`      
 }
 
 func(m *AttendeeModel) Insert(attendee *Attendee) (*Attendee, error) {
@@ -35,11 +35,11 @@ func(m *AttendeeModel) Insert(attendee *Attendee) (*Attendee, error) {
 		return nil, err
 	}
 
-	attendee.Id = int(id)
+	attendee.Id = id
 	return attendee, nil
 }
 
-func(m *AttendeeModel) GetByEventAndAttendee(eventId, userId int) (*Attendee, error) {
+func(m *AttendeeModel) GetByEventAndAttendee(eventId, userId int64) (*Attendee, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
@@ -59,7 +59,7 @@ func(m *AttendeeModel) GetByEventAndAttendee(eventId, userId int) (*Attendee, er
 	return &attendee, nil
 }
 
-func (m *AttendeeModel) GetAttendeesByEvent(eventId int) ([]*User, error) {
+func (m *AttendeeModel) GetAttendeesByEvent(eventId int64) ([]*User, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
@@ -98,7 +98,7 @@ func (m *AttendeeModel) GetAttendeesByEvent(eventId int) ([]*User, error) {
 	return users, nil
 }
 
-func (m *AttendeeModel) Delete(userId, eventId int) error {
+func (m *AttendeeModel) Delete(userId, eventId int64) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	
@@ -111,7 +111,7 @@ func (m *AttendeeModel) Delete(userId, eventId int) error {
 	return nil
 }
 
-func (m *AttendeeModel) GetEventsByAttendee(attendeeId int) ([]*Event, error) {
+func (m *AttendeeModel) GetEventsByAttendee(attendeeId int64) ([]*Event, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	
