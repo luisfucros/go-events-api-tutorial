@@ -4,9 +4,17 @@ import (
 	"log"
 	"github.com/luisfucros/go-events-api-tutorial/internal/database"
 	"github.com/luisfucros/go-events-api-tutorial/internal/configs"
+	_ "github.com/luisfucros/go-events-api-tutorial/docs"
 	mysqlDriver "github.com/go-sql-driver/mysql"
 )
 
+// @title Events Rest API
+// @version 0.1.0
+// @description	API for event and users
+// @securityDefinitions.apikey	BearerAuth
+// @in							header
+// @name						Authorization
+// @description Enter your bearer token in the format **Bearer &lt;token&gt;**
 
 type application struct {
 	port       int64

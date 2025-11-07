@@ -8,6 +8,20 @@ import (
 	"github.com/luisfucros/go-events-api-tutorial/internal/database"
 )
 
+// createEvent creates a new event
+//
+// @Summary Create a new event
+// @Description Creates a new event for the logged-in user
+// @Tags Events
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param event body database.Event true "Event to create"
+// @Success 201 {object} database.Event
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /api/v1/events [post]
 func (app *application) createEvent(c *gin.Context) {
 	var event database.Event
 
@@ -28,6 +42,15 @@ func (app *application) createEvent(c *gin.Context) {
 	c.JSON(http.StatusCreated, event)
 }
 
+// getEvents return all events
+//
+// @Summary Get all events
+// @Description Returns all events in the db
+// @Tags Events
+// @Produce json
+// @Success 200 {object} []database.Event
+// @Failure 500 {object} map[string]string
+// @Router /api/v1/events [get]
 func (app *application) getAllEvents(c *gin.Context) {
 	events, err := app.models.Events.GetAll()
 
@@ -39,6 +62,18 @@ func (app *application) getAllEvents(c *gin.Context) {
 	c.JSON(http.StatusOK, events)
 }
 
+// getEvent returns a single event by ID
+//
+// @Summary Get an event by ID
+// @Description Returns details for a specific event
+// @Tags Events
+// @Produce json
+// @Param id path int true "Event ID"
+// @Success 200 {object} database.Event
+// @Failure 400 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /api/v1/events/{id} [get]
 func (app *application) getEvent(c *gin.Context) {
 	idParam := c.Param("id")
 	id, err := strconv.ParseInt(idParam, 10, 64)
@@ -64,6 +99,24 @@ func (app *application) getEvent(c *gin.Context) {
 	c.JSON(http.StatusOK, event)
 }
 
+
+// updateEvent updates an existing event
+//
+// @Summary Update an existing event
+// @Description Updates an event owned by the logged-in user
+// @Tags Events
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Event ID"
+// @Param event body database.Event true "Updated event data"
+// @Success 200 {object} database.Event
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Failure 403 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /api/v1/events/{id} [put]
 func (app *application) updateEvent(c *gin.Context) {
 	idParam := c.Param("id")
 	id, err := strconv.ParseInt(idParam, 10, 64)
@@ -107,6 +160,21 @@ func (app *application) updateEvent(c *gin.Context) {
 	c.JSON(http.StatusOK, updatedEvent)
 }
 
+// deleteEvent deletes an event
+//
+// @Summary Delete an event
+// @Description Deletes an event owned by the logged-in user
+// @Tags Events
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Event ID"
+// @Success 204 "No Content"
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Failure 403 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /api/v1/events/{id} [delete]
 func (app *application) deleteEvent(c *gin.Context) {
 	idParam := c.Param("id")
 	id, err := strconv.ParseInt(idParam, 10, 64)
