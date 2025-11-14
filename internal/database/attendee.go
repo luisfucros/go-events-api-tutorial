@@ -14,7 +14,7 @@ type AttendeeModel struct {
 type Attendee struct {
 	Id         int64   `json:"id"`
 	UserId     int64   `json:"user_id"`
-	EventId    int64   `json:"event_id"`      
+	EventId    int64   `json:"event_id"`
 }
 
 func(m *AttendeeModel) Insert(attendee *Attendee) (*Attendee, error) {
