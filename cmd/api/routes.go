@@ -9,6 +9,7 @@ import (
 
 func (app *application) routes() http.Handler {
 	g := gin.Default()
+	g.Use(RateLimiter())
 
 	v1 := g.Group("/api/v1")
 	{
