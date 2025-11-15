@@ -3,9 +3,11 @@ package main
 import (
 	"net/http"
 	"strconv"
+	"context"
+	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/luisfucros/go-events-api-tutorial/internal/database"
+	"github.com/luisfucros/go-events-api-tutorial/internal/store"
 )
 
 // createEvent creates a new event
@@ -23,16 +25,20 @@ import (
 // @Failure 500 {object} map[string]string
 // @Router /api/v1/events [post]
 func (app *application) createEvent(c *gin.Context) {
-	var event database.Event
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 3*time.Second)
+	defer cancel()
+
+	var event store.Event
 
 	if err := c.ShouldBindJSON(&event); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	
 
 	user := app.GetUserFromContext(c)
 	event.OwnerId = user.Id
-	err := app.models.Events.Insert(&event)
+	err := app.store.Events.Insert(ctx, &event)
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -52,7 +58,10 @@ func (app *application) createEvent(c *gin.Context) {
 // @Failure 500 {object} map[string]string
 // @Router /api/v1/events [get]
 func (app *application) getAllEvents(c *gin.Context) {
-	events, err := app.models.Events.GetAll()
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 3*time.Second)
+    defer cancel()
+
+	events, err := app.store.Events.GetAll(ctx)
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve events"})
@@ -75,6 +84,9 @@ func (app *application) getAllEvents(c *gin.Context) {
 // @Failure 500 {object} map[string]string
 // @Router /api/v1/events/{id} [get]
 func (app *application) getEvent(c *gin.Context) {
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 3*time.Second)
+    defer cancel()
+
 	idParam := c.Param("id")
 	id, err := strconv.ParseInt(idParam, 10, 64)
 
@@ -83,7 +95,7 @@ func (app *application) getEvent(c *gin.Context) {
 		return
 	}
 
-	event, err := app.models.Events.Get(id)
+	event, err := app.store.Events.Get(ctx, id)
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve event"})
@@ -118,6 +130,9 @@ func (app *application) getEvent(c *gin.Context) {
 // @Failure 500 {object} map[string]string
 // @Router /api/v1/events/{id} [put]
 func (app *application) updateEvent(c *gin.Context) {
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 3*time.Second)
+    defer cancel()
+
 	idParam := c.Param("id")
 	id, err := strconv.ParseInt(idParam, 10, 64)
 
@@ -126,7 +141,7 @@ func (app *application) updateEvent(c *gin.Context) {
 	}
 
 	user := app.GetUserFromContext(c)
-	existingEvent, err := app.models.Events.Get(id)
+	existingEvent, err := app.store.Events.Get(ctx, id)
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Something went wrong"})
@@ -143,7 +158,7 @@ func (app *application) updateEvent(c *gin.Context) {
 		return
 	}
 
-	updatedEvent := &database.Event{}
+	updatedEvent := &store.Event{}
 
 	if err := c.ShouldBindBodyWithJSON(updatedEvent); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -152,7 +167,7 @@ func (app *application) updateEvent(c *gin.Context) {
 
 	updatedEvent.Id = id
 
-	if err := app.models.Events.Update(updatedEvent); err != nil {
+	if err := app.store.Events.Update(ctx, updatedEvent); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update event"})
 		return
 	}
@@ -176,6 +191,9 @@ func (app *application) updateEvent(c *gin.Context) {
 // @Failure 500 {object} map[string]string
 // @Router /api/v1/events/{id} [delete]
 func (app *application) deleteEvent(c *gin.Context) {
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 3*time.Second)
+    defer cancel()
+
 	idParam := c.Param("id")
 	id, err := strconv.ParseInt(idParam, 10, 64)
 
@@ -184,7 +202,7 @@ func (app *application) deleteEvent(c *gin.Context) {
 	}
 
 	user := app.GetUserFromContext(c)
-	existingEvent, err := app.models.Events.Get(id)
+	existingEvent, err := app.store.Events.Get(ctx, id)
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve event"})
@@ -200,7 +218,7 @@ func (app *application) deleteEvent(c *gin.Context) {
 		return
 	}
 
-	if err := app.models.Events.Delete(id); err != nil {
+	if err := app.store.Events.Delete(ctx, id); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete event"})
 	}
 
@@ -208,6 +226,9 @@ func (app *application) deleteEvent(c *gin.Context) {
 }
 
 func (app *application) addAttendeeToEvent(c *gin.Context) {
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 3*time.Second)
+    defer cancel()
+
 	idParam := c.Param("id")
 	eventId, err := strconv.ParseInt(idParam, 10, 64)
 	if err != nil {
@@ -222,7 +243,7 @@ func (app *application) addAttendeeToEvent(c *gin.Context) {
 		return
 	}
 
-	event, err := app.models.Events.Get(eventId)
+	event, err := app.store.Events.Get(ctx, eventId)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve event"})
 		return
@@ -232,7 +253,7 @@ func (app *application) addAttendeeToEvent(c *gin.Context) {
 		return
 	}
 
-	userToAdd, err := app.models.Users.Get(userId)
+	userToAdd, err := app.store.Users.Get(ctx, userId)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve user"})
 		return
@@ -248,7 +269,7 @@ func (app *application) addAttendeeToEvent(c *gin.Context) {
 		return
 	}
 
-	existingAttendee, err := app.models.Attendees.GetByEventAndAttendee(event.Id, userToAdd.Id)
+	existingAttendee, err := app.store.Attendees.GetByEventAndAttendee(ctx, event.Id, userToAdd.Id)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve attendee"})
 		return
@@ -258,12 +279,12 @@ func (app *application) addAttendeeToEvent(c *gin.Context) {
 		return
 	}
 
-	attendee := database.Attendee{
+	attendee := store.Attendee{
 		EventId: event.Id,
 		UserId: userToAdd.Id,
 	}
 
-	_, err = app.models.Attendees.Insert(&attendee)
+	_, err = app.store.Attendees.Insert(ctx, &attendee)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add attendee to event"})
 		return
@@ -273,6 +294,9 @@ func (app *application) addAttendeeToEvent(c *gin.Context) {
 }
 
 func (app *application) getAttendeesForEvent(c *gin.Context) {
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 3*time.Second)
+    defer cancel()
+
 	idParam := c.Param("id")
 	eventId, err := strconv.ParseInt(idParam, 10, 64)
 	if err != nil {
@@ -280,7 +304,7 @@ func (app *application) getAttendeesForEvent(c *gin.Context) {
 		return
 	}
 
-	users, err := app.models.Attendees.GetAttendeesByEvent(eventId)
+	users, err := app.store.Attendees.GetAttendeesByEvent(ctx, eventId)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve attendees for event"})
 		return
@@ -290,6 +314,9 @@ func (app *application) getAttendeesForEvent(c *gin.Context) {
 }
 
 func (app *application) deleteAttendeeFromEvent(c *gin.Context) {
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 3*time.Second)
+    defer cancel()
+
 	idParam := c.Param("id")
 	eventId, err := strconv.ParseInt(idParam, 10, 64)
 	if err != nil {
@@ -305,7 +332,7 @@ func (app *application) deleteAttendeeFromEvent(c *gin.Context) {
 	}
 
 	user := app.GetUserFromContext(c)
-	event, err := app.models.Events.Get(eventId)
+	event, err := app.store.Events.Get(ctx, eventId)
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve event"})
@@ -322,7 +349,7 @@ func (app *application) deleteAttendeeFromEvent(c *gin.Context) {
 		return
 	}
 
-	err = app.models.Attendees.Delete(userId, eventId)
+	err = app.store.Attendees.Delete(ctx, userId, eventId)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete attendee"})
 		return
@@ -332,6 +359,9 @@ func (app *application) deleteAttendeeFromEvent(c *gin.Context) {
 }
 
 func (app *application) getEventsByAttendee(c *gin.Context) {
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 3*time.Second)
+    defer cancel()
+
 	idParam := c.Param("id")
 	id, err := strconv.ParseInt(idParam, 10, 64)
 	if err != nil {
@@ -339,7 +369,7 @@ func (app *application) getEventsByAttendee(c *gin.Context) {
 		return
 	}
 
-	events, err := app.models.Attendees.GetEventsByAttendee(id)
+	events, err := app.store.Attendees.GetEventsByAttendee(ctx, id)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get events"})
 		return

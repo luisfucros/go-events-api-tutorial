@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"github.com/luisfucros/go-events-api-tutorial/internal/database"
+	"github.com/luisfucros/go-events-api-tutorial/internal/store"
 	"github.com/luisfucros/go-events-api-tutorial/internal/configs"
 	_ "github.com/luisfucros/go-events-api-tutorial/docs"
 	mysqlDriver "github.com/go-sql-driver/mysql"
@@ -19,7 +20,7 @@ import (
 type application struct {
 	port       int64
 	JWTSecret  string
-	models     database.Models
+	store     store.Storage
 
 }
 
@@ -40,12 +41,12 @@ func main() {
 	}
 	defer db.Close()
 	
-	models := database.NewModels(db)
+	storage := store.NewStorage(db)
 
 	app := &application{
 		port: configs.Envs.Port,
 		JWTSecret: configs.Envs.JWTSecret,
-		models: models,
+		store: storage,
 	}
 
 	if err := app.serve(); err != nil {

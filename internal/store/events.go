@@ -1,12 +1,11 @@
-package database
+package store
 
 import (
 	"context"
 	"database/sql"
-	"time"
 )
 
-type EventModel struct {
+type EventStore struct {
 	DB *sql.DB
 }
 
@@ -19,10 +18,7 @@ type Event struct {
 	Location    string `json:"location" binding:"required,min=3"`
 }
 
-func (m *EventModel) Insert(event *Event) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
+func (m *EventStore) Insert(ctx context.Context, event *Event) error {
 	query := "INSERT INTO events (owner_id, name, description, date, location) VALUES (?, ?, ?, ?, ?)"
 
 	result, err := m.DB.ExecContext(ctx, query,
@@ -43,10 +39,7 @@ func (m *EventModel) Insert(event *Event) error {
 	return nil
 }
 
-func (m *EventModel) GetAll() ([]*Event, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
+func (m *EventStore) GetAll(ctx context.Context) ([]*Event, error) {
 	query := "SELECT * FROM events"
 
 	rows, err := m.DB.QueryContext(ctx, query)
@@ -78,8 +71,8 @@ func (m *EventModel) GetAll() ([]*Event, error) {
 	return events, nil
 }
 
-func (m *EventModel) Get(id int64) (*Event, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+func (m *EventStore) Get(ctx context.Context, id int64) (*Event, error) {
+	ctx, cancel := context.WithTimeout(ctx, QueryTimeoutDuration)
 	defer cancel()
 
 	query := "SELECT * FROM events WHERE id = ?"
@@ -97,10 +90,7 @@ func (m *EventModel) Get(id int64) (*Event, error) {
 	return &event, nil
 }
 
-func (m *EventModel) Update(event *Event) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
+func (m *EventStore) Update(ctx context.Context, event *Event) error {
 	query := "UPDATE events SET name = ?, description = ?, date = ?, location = ? WHERE id = ?"
 
 	_, err := m.DB.ExecContext(ctx, query, event.Name, event.Description, event.Date, event.Location, event.Id)
@@ -112,10 +102,7 @@ func (m *EventModel) Update(event *Event) error {
 	return nil
 }
 
-func (m *EventModel) Delete(id int64) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
+func (m *EventStore) Delete(ctx context.Context, id int64) error {
 	query := "DELETE FROM events WHERE id = ?"
 
 	_, err := m.DB.ExecContext(ctx, query, id)

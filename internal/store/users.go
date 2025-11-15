@@ -1,12 +1,11 @@
-package database
+package store
 
 import (
 	"context"
 	"database/sql"
-	"time"
 )
 
-type UserModel struct {
+type UserStore struct {
 	DB *sql.DB
 }
 
@@ -18,10 +17,7 @@ type User struct {
 	CreatedAt string `json:"created_at"`
 }
 
-func (m *UserModel) Insert(user *User) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
+func (m *UserStore) Insert(ctx context.Context, user *User) error {
 	query := "INSERT INTO users (email, password, name) VALUES (?, ?, ?)"
 
 	result, err := m.DB.ExecContext(ctx, query, user.Email, user.Password, user.Name)
@@ -38,10 +34,7 @@ func (m *UserModel) Insert(user *User) error {
 	return nil
 }
 
-func (m *UserModel) getUser(query string, args ...interface{}) (*User, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
+func (m *UserStore) getUser(ctx context.Context, query string, args ...interface{}) (*User, error) {
 	var user User
 	err := m.DB.QueryRowContext(ctx, query, args...).Scan(&user.Id, &user.Email, &user.Name, &user.Password, &user.CreatedAt)
 
@@ -55,12 +48,12 @@ func (m *UserModel) getUser(query string, args ...interface{}) (*User, error) {
 	return &user, nil
 }
 
-func (m *UserModel) Get(id int64) (*User, error) {
+func (m *UserStore) Get(ctx context.Context, id int64) (*User, error) {
 	query := "SELECT * FROM users WHERE id = ?"
-	return m.getUser(query, id)
+	return m.getUser(ctx, query, id)
 }
 
-func (m *UserModel) GetByEmail(email string) (*User, error) {
+func (m *UserStore) GetByEmail(ctx context.Context, email string) (*User, error) {
 	query := "SELECT * FROM users WHERE email = ?"
-	return m.getUser(query, email)
+	return m.getUser(ctx, query, email)
 }

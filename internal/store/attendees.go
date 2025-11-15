@@ -1,13 +1,12 @@
-package database
+package store
 
 import (
 	"context"
 	"errors"
-	"time"
 	"database/sql"
 )
 
-type AttendeeModel struct {
+type AttendeeStore struct {
 	DB *sql.DB
 }
 
@@ -17,10 +16,7 @@ type Attendee struct {
 	EventId    int64   `json:"event_id"`
 }
 
-func(m *AttendeeModel) Insert(attendee *Attendee) (*Attendee, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
+func(m *AttendeeStore) Insert(ctx context.Context, attendee *Attendee) (*Attendee, error) {
 	query := "INSERT INTO attendees (event_id, user_id) VALUES (?, ?)"
 
 	result, err := m.DB.ExecContext(ctx, query,
@@ -39,10 +35,7 @@ func(m *AttendeeModel) Insert(attendee *Attendee) (*Attendee, error) {
 	return attendee, nil
 }
 
-func(m *AttendeeModel) GetByEventAndAttendee(eventId, userId int64) (*Attendee, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
+func(m *AttendeeStore) GetByEventAndAttendee(ctx context.Context, eventId, userId int64) (*Attendee, error) {
 	query := `SELECT id, user_id, event_id FROM attendees WHERE event_id = ? AND user_id = ?`
 
 	row := m.DB.QueryRowContext(ctx, query, eventId, userId)
@@ -59,10 +52,7 @@ func(m *AttendeeModel) GetByEventAndAttendee(eventId, userId int64) (*Attendee, 
 	return &attendee, nil
 }
 
-func (m *AttendeeModel) GetAttendeesByEvent(eventId int64) ([]*User, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
+func (m *AttendeeStore) GetAttendeesByEvent(ctx context.Context, eventId int64) ([]*User, error) {
 	query := `
 		SELECT u.id, u.name, u.email
 		FROM users u
@@ -98,10 +88,7 @@ func (m *AttendeeModel) GetAttendeesByEvent(eventId int64) ([]*User, error) {
 	return users, nil
 }
 
-func (m *AttendeeModel) Delete(userId, eventId int64) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	
+func (m *AttendeeStore) Delete(ctx context.Context, userId, eventId int64) error {	
 	query := "DELETE FROM attendees WHERE user_id = ? AND event_id=?"
 	_, err := m.DB.ExecContext(ctx, query, userId, eventId)
 	if err != nil {
@@ -111,10 +98,7 @@ func (m *AttendeeModel) Delete(userId, eventId int64) error {
 	return nil
 }
 
-func (m *AttendeeModel) GetEventsByAttendee(attendeeId int64) ([]*Event, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	
+func (m *AttendeeStore) GetEventsByAttendee(ctx context.Context, attendeeId int64) ([]*Event, error) {	
 	query := `
 		SELECT e.id, e.owner_id, e.name, e.description, e.date, e.location
 		FROM events e

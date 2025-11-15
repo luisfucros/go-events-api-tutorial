@@ -3,6 +3,8 @@ package main
 import (
 	"net/http"
 	"strings"
+	"context"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
@@ -10,6 +12,9 @@ import (
 
 func (app *application) AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(c.Request.Context(), 3*time.Second)
+    	defer cancel()
+
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization header is required"})
@@ -45,7 +50,7 @@ func (app *application) AuthMiddleware() gin.HandlerFunc {
 
 		userId := claims["userId"].(float64)
 
-		user, err := app.models.Users.Get(int64(userId))
+		user, err := app.store.Users.Get(ctx, int64(userId))
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized access"})
 			c.Abort()
