@@ -7,7 +7,7 @@ import (
 	"net/http"
 )
 
-func RateLimiter() gin.HandlerFunc {
+func (app *application) RateLimiter() gin.HandlerFunc {
 	limiter := rate.NewLimiter(1, 4)
 	return func(c *gin.Context) {
 
@@ -15,7 +15,7 @@ func RateLimiter() gin.HandlerFunc {
 			c.Next()
 		} else {
 			c.JSON(http.StatusTooManyRequests, gin.H{
-				"message": "Limite exceed",
+				"message": "Limite exceeded",
 			})
 			c.Abort()
 		}

@@ -2,14 +2,14 @@ package main
 
 import (
 	"github.com/gin-gonic/gin"
-	"net/http"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
+	"net/http"
 )
 
 func (app *application) routes() http.Handler {
 	g := gin.Default()
-	g.Use(RateLimiter())
+	g.Use(app.RateLimiter())
 
 	v1 := g.Group("/api/v1")
 	{
