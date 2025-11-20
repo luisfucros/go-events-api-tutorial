@@ -8,6 +8,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+
+	"github.com/luisfucros/go-events-api-tutorial/internal/configs"
+	"github.com/luisfucros/go-events-api-tutorial/internal/store"
+
 )
 
 func (app *application) AuthMiddleware() gin.HandlerFunc {
@@ -50,7 +54,7 @@ func (app *application) AuthMiddleware() gin.HandlerFunc {
 
 		userId := claims["userId"].(float64)
 
-		user, err := app.store.Users.Get(ctx, int64(userId))
+		user, err := app.getUser(ctx, int64(userId))
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized access"})
 			c.Abort()
@@ -61,4 +65,28 @@ func (app *application) AuthMiddleware() gin.HandlerFunc {
 
 		c.Next()
 	}
+}
+
+func (app *application) getUser(ctx context.Context, userId int64) (*store.User, error) {
+	if !configs.Envs.REDISEnabled {
+		return app.store.Users.Get(ctx, int64(userId))
+	}
+
+	user, err := app.cacheStorage.Users.Get(ctx, userId)
+	if err != nil {
+		return nil, err
+	}
+
+	if user == nil {
+		user, err = app.store.Users.Get(ctx, int64(userId))
+		if err != nil {
+			return nil, err
+		}
+
+		if err := app.cacheStorage.Users.Set(ctx, user); err != nil {
+			return nil, err
+		}
+	}
+
+	return user, nil
 }

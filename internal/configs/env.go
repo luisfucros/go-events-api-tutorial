@@ -17,6 +17,10 @@ type Config struct {
 	DBName                 string
 	JWTSecret              string
 	JWTExpirationInSeconds int64
+	REDISAddr              string
+	REDISPW                string
+	REDISDB                int
+	REDISEnabled           bool
 }
 
 var Envs = initConfig()
@@ -33,6 +37,10 @@ func initConfig() Config {
 		DBName:                 getEnv("DB_NAME", "events"),
 		JWTSecret:              getEnv("JWT_SECRET", "super-secret"),
 		JWTExpirationInSeconds: getEnvAsInt("JWT_EXPIRATION_IN_SECONDS", 3600*24*7),
+		REDISAddr:              getEnv("REDIS_ADDR", "localhost:6379"),
+		REDISPW:                getEnv("REDIS_PW", ""),
+		REDISDB:                int(getEnvAsInt("REDIS_DB", 0)),
+		REDISEnabled:           getEnvAsBool("REDIS_ENABLED", false),
 	}
 }
 
@@ -56,4 +64,18 @@ func getEnvAsInt(key string, fallback int64) int64 {
 	}
 
 	return fallback
+}
+
+func getEnvAsBool(key string, fallback bool) bool {
+	val, ok := os.LookupEnv(key)
+	if !ok {
+		return fallback
+	}
+
+	boolVal, err := strconv.ParseBool(val)
+	if err != nil {
+		return fallback
+	}
+
+	return boolVal
 }
