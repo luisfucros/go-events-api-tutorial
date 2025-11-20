@@ -8,7 +8,7 @@ import (
 )
 
 func (app *application) RateLimiter() gin.HandlerFunc {
-	limiter := rate.NewLimiter(1, 4)
+	limiter := rate.NewLimiter(5, 10)
 	return func(c *gin.Context) {
 
 		if limiter.Allow() {
