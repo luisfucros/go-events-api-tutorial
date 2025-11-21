@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/luisfucros/go-events-api-tutorial/internal/store"
+	"github.com/luisfucros/go-events-api-tutorial/internal/configs"
 )
 
 // createEvent creates a new event
@@ -45,6 +46,9 @@ func (app *application) createEvent(c *gin.Context) {
 		return
 	}
 
+	// invalidate cache
+    app.cacheInvalidateEvent(ctx, event.Id)
+
 	c.JSON(http.StatusCreated, event)
 }
 
@@ -61,12 +65,26 @@ func (app *application) getAllEvents(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 3*time.Second)
     defer cancel()
 
+	// ---- CACHE READ ----
+    if cached, ok := app.cacheGetAllEvents(ctx); ok {
+        c.JSON(http.StatusOK, cached)
+        return
+    }
+
 	events, err := app.store.Events.GetAll(ctx)
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve events"})
 		return
 	}
+
+	eventList := make([]store.Event, len(events))
+	for i, e := range events {
+		eventList[i] = *e
+	}
+
+	// ---- CACHE SET ----
+    app.cacheSetAllEvents(ctx, eventList)
 
 	c.JSON(http.StatusOK, events)
 }
@@ -95,6 +113,12 @@ func (app *application) getEvent(c *gin.Context) {
 		return
 	}
 
+	// --- CACHE READ ---
+    if cached, ok := app.cacheGetEvent(ctx, id); ok {
+        c.JSON(http.StatusOK, cached)
+        return
+    }
+
 	event, err := app.store.Events.Get(ctx, id)
 
 	if err != nil {
@@ -107,6 +131,8 @@ func (app *application) getEvent(c *gin.Context) {
 		return
 	}
 
+	// --- CACHE SET ---
+    app.cacheSetEvent(ctx, event)
 
 	c.JSON(http.StatusOK, event)
 }
@@ -138,6 +164,7 @@ func (app *application) updateEvent(c *gin.Context) {
 
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid event ID"})
+		return
 	}
 
 	user := app.GetUserFromContext(c)
@@ -171,6 +198,9 @@ func (app *application) updateEvent(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update event"})
 		return
 	}
+
+	// ---- CACHE INVALIDATIONS ----
+    app.cacheInvalidateEvent(ctx, id)
 
 	c.JSON(http.StatusOK, updatedEvent)
 }
@@ -221,6 +251,9 @@ func (app *application) deleteEvent(c *gin.Context) {
 	if err := app.store.Events.Delete(ctx, id); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete event"})
 	}
+
+	// ---- CACHE INVALIDATIONS ----
+    app.cacheInvalidateEvent(ctx, id)
 
 	c.JSON(http.StatusNoContent, nil)
 }
@@ -376,4 +409,48 @@ func (app *application) getEventsByAttendee(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, events)
+}
+
+func (app *application) cacheGetAllEvents(ctx context.Context) ([]store.Event, bool) {
+    if !configs.Envs.REDISEnabled {
+        return nil, false
+    }
+    list, err := app.cacheStorage.Events.GetAll(ctx)
+    if err != nil || list == nil {
+        return nil, false
+    }
+    return list, true
+}
+
+func (app *application) cacheSetAllEvents(ctx context.Context, events []store.Event) {
+    if !configs.Envs.REDISEnabled {
+        return
+    }
+    _ = app.cacheStorage.Events.SetAll(ctx, events)
+}
+
+func (app *application) cacheGetEvent(ctx context.Context, id int64) (*store.Event, bool) {
+    if !configs.Envs.REDISEnabled {
+        return nil, false
+    }
+    cached, err := app.cacheStorage.Events.Get(ctx, id)
+    if err != nil || cached == nil {
+        return nil, false
+    }
+    return cached, true
+}
+
+func (app *application) cacheSetEvent(ctx context.Context, event *store.Event) {
+    if !configs.Envs.REDISEnabled {
+        return
+    }
+    _ = app.cacheStorage.Events.Set(ctx, event)
+}
+
+func (app *application) cacheInvalidateEvent(ctx context.Context, id int64) {
+    if !configs.Envs.REDISEnabled {
+        return
+    }
+    app.cacheStorage.Events.Delete(ctx, id)
+    app.cacheStorage.Events.DeleteAll(ctx)
 }
