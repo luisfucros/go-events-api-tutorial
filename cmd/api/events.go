@@ -323,6 +323,10 @@ func (app *application) addAttendeeToEvent(c *gin.Context) {
 		return
 	}
 
+	// ---- CACHE INVALIDATION ----
+	app.cacheInvalidateAttendeesByEvent(ctx, event.Id)
+	app.cacheInvalidateEventsByAttendee(ctx, userToAdd.Id)
+
 	c.JSON(http.StatusCreated, attendee)
 }
 
@@ -337,11 +341,25 @@ func (app *application) getAttendeesForEvent(c *gin.Context) {
 		return
 	}
 
+	// ---- CACHE READ ----
+	if cached, ok := app.cacheGetAttendeesByEvent(ctx, eventId); ok {
+		c.JSON(http.StatusOK, cached)
+		return
+	}
+
 	users, err := app.store.Attendees.GetAttendeesByEvent(ctx, eventId)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve attendees for event"})
 		return
 	}
+
+	userList := make([]store.User, len(users))
+	for i, u := range users {
+		userList[i] = *u
+	}
+
+	// ---- CACHE SET ----
+	app.cacheSetAttendeesByEvent(ctx, eventId, userList)
 
 	c.JSON(http.StatusOK, users)
 }
@@ -388,6 +406,10 @@ func (app *application) deleteAttendeeFromEvent(c *gin.Context) {
 		return
 	}
 
+	// ---- CACHE INVALIDATION ----
+	app.cacheInvalidateAttendeesByEvent(ctx, eventId)
+	app.cacheInvalidateEventsByAttendee(ctx, userId)
+
 	c.JSON(http.StatusNoContent, nil)
 }
 
@@ -402,11 +424,25 @@ func (app *application) getEventsByAttendee(c *gin.Context) {
 		return
 	}
 
+	// ---- CACHE READ ----
+	if cached, ok := app.cacheGetEventsByAttendee(ctx, id); ok {
+		c.JSON(http.StatusOK, cached)
+		return
+	}
+
 	events, err := app.store.Attendees.GetEventsByAttendee(ctx, id)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get events"})
 		return
 	}
+
+	eventList := make([]store.Event, len(events))
+	for i, e := range events {
+		eventList[i] = *e
+	}
+
+	// ---- CACHE SET ----
+	app.cacheSetEventsByAttendee(ctx, id, eventList)
 
 	c.JSON(http.StatusOK, events)
 }
@@ -453,4 +489,80 @@ func (app *application) cacheInvalidateEvent(ctx context.Context, id int64) {
     }
     app.cacheStorage.Events.Delete(ctx, id)
     app.cacheStorage.Events.DeleteAll(ctx)
+}
+
+func (app *application) cacheGetAttendeesByEvent(
+	ctx context.Context,
+	eventID int64,
+) ([]store.User, bool) {
+
+	if !configs.Envs.REDISEnabled {
+		return nil, false
+	}
+
+	users, err := app.cacheStorage.Attendees.GetAttendeesByEvent(ctx, eventID)
+	if err != nil || users == nil {
+		return nil, false
+	}
+
+	return users, true
+}
+
+func (app *application) cacheSetAttendeesByEvent(
+	ctx context.Context,
+	eventID int64,
+	users []store.User,
+) {
+	if !configs.Envs.REDISEnabled {
+		return
+	}
+	_ = app.cacheStorage.Attendees.SetAttendeesByEvent(ctx, eventID, users)
+}
+
+func (app *application) cacheInvalidateAttendeesByEvent(
+	ctx context.Context,
+	eventID int64,
+) {
+	if !configs.Envs.REDISEnabled {
+		return
+	}
+	app.cacheStorage.Attendees.DeleteAttendeesByEvent(ctx, eventID)
+}
+
+func (app *application) cacheGetEventsByAttendee(
+	ctx context.Context,
+	userID int64,
+) ([]store.Event, bool) {
+
+	if !configs.Envs.REDISEnabled {
+		return nil, false
+	}
+
+	events, err := app.cacheStorage.Attendees.GetEventsByAttendee(ctx, userID)
+	if err != nil || events == nil {
+		return nil, false
+	}
+
+	return events, true
+}
+
+func (app *application) cacheSetEventsByAttendee(
+	ctx context.Context,
+	userID int64,
+	events []store.Event,
+) {
+	if !configs.Envs.REDISEnabled {
+		return
+	}
+	_ = app.cacheStorage.Attendees.SetEventsByAttendee(ctx, userID, events)
+}
+
+func (app *application) cacheInvalidateEventsByAttendee(
+	ctx context.Context,
+	userID int64,
+) {
+	if !configs.Envs.REDISEnabled {
+		return
+	}
+	app.cacheStorage.Attendees.DeleteEventsByAttendee(ctx, userID)
 }

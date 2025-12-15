@@ -21,11 +21,23 @@ type Storage struct {
 		SetAll(ctx context.Context, events []store.Event) error
 		DeleteAll(ctx context.Context)
     }
+	Attendees interface {
+		// event -> users
+		GetAttendeesByEvent(ctx context.Context, eventID int64) ([]store.User, error)
+		SetAttendeesByEvent(ctx context.Context, eventID int64, users []store.User) error
+		DeleteAttendeesByEvent(ctx context.Context, eventID int64)
+
+		// user -> events
+		GetEventsByAttendee(ctx context.Context, userID int64) ([]store.Event, error)
+		SetEventsByAttendee(ctx context.Context, userID int64, events []store.Event) error
+		DeleteEventsByAttendee(ctx context.Context, userID int64)
+	}
 }
 
 func NewRedisStorage(rbd *redis.Client) Storage {
 	return Storage{
 		Users: &UserStore{rdb: rbd},
 		Events: &EventStore{rdb: rbd},
+		Attendees: &AttendeeStore{rdb: rbd},
 	}
 }
