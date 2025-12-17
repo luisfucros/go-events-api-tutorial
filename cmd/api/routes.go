@@ -8,6 +8,8 @@ import (
 )
 
 func (app *application) routes() http.Handler {
+	app.logger.Info("setting up routes")
+
 	g := gin.Default()
 	g.Use(app.RateLimiter())
 

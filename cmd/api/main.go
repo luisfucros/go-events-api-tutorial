@@ -25,6 +25,7 @@ type application struct {
 	JWTSecret     string
 	store         store.Storage
 	cacheStorage  cache.Storage
+	logger       *zap.SugaredLogger
 }
 
 func main() {
@@ -64,10 +65,11 @@ func main() {
 	cacheStorage := cache.NewRedisStorage(rdb)
 
 	app := &application{
-		port: configs.Envs.Port,
-		JWTSecret: configs.Envs.JWTSecret,
-		store: storage,
+		port:         configs.Envs.Port,
+		JWTSecret:    configs.Envs.JWTSecret,
+		store:        storage,
 		cacheStorage: cacheStorage,
+		logger:       logger,
 	}
 
 	if err := app.serve(); err != nil {
