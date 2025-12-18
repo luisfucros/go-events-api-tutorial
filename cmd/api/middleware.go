@@ -21,14 +21,14 @@ func (app *application) AuthMiddleware() gin.HandlerFunc {
 
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization header is required"})
+			app.unauthorized(c, "Authorization header is required")
 			c.Abort()
 			return
 		}
 
 		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 		if tokenString == authHeader {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization header is required"})
+			app.unauthorized(c, "Authorization header is required")
 			c.Abort()
 			return
 		}
@@ -40,14 +40,14 @@ func (app *application) AuthMiddleware() gin.HandlerFunc {
 			return []byte(app.JWTSecret), nil
 		})
 		if err != nil || !token.Valid {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+			app.unauthorized(c, "invalid token")
 			c.Abort()
 			return
 		}
 
 		claims, ok := token.Claims.(jwt.MapClaims)
 		if !ok {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+			app.unauthorized(c, "invalid token")
 			c.Abort()
 			return
 		}
@@ -56,7 +56,7 @@ func (app *application) AuthMiddleware() gin.HandlerFunc {
 
 		user, err := app.getUser(ctx, int64(userId))
 		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized access"})
+			app.unauthorized(c, "unauthorized access")
 			c.Abort()
 			return
 		}
