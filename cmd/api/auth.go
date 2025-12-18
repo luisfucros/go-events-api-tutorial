@@ -33,24 +33,24 @@ func (app *application) login(c *gin.Context) {
 	var auth loginRequest
 
 	if err := c.ShouldBindJSON(&auth); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Something went wrong"})
+		app.badRequest(c, err, "invalid format")
 		return
 	}
 
 	existingUser, err := app.store.Users.GetByEmail(ctx, auth.Email)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		app.internalServerError(c, err, "something went wrong")
 		return
 	}
 
 	if existingUser == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
+		app.unauthorized(c, "invalid email or password")
 		return
 	}
 
 	err = bcrypt.CompareHashAndPassword([]byte(existingUser.Password), []byte(auth.Password))
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
+		app.unauthorized(c, "invalid email or password")
 		return
 	}
 
@@ -61,7 +61,7 @@ func (app *application) login(c *gin.Context) {
 
 	tokenString, err := token.SignedString([]byte(app.JWTSecret))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error generating token"})
+		app.internalServerError(c, err, "error generating token")
 		return
 	}
 	c.JSON(http.StatusOK, loginResponse{Token: tokenString})
@@ -74,25 +74,25 @@ func (app *application) registerUser(c *gin.Context) {
 	var register registerRequest
 
 	if err := c.ShouldBindJSON(&register); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		app.badRequest(c, err, "invalid format")
 		return
 	}
 
 	existingUser, err := app.store.Users.GetByEmail(ctx, register.Email)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		app.internalServerError(c, err, "something went wrong")
 		return
 	}
 
 	if existingUser != nil {
-		c.JSON(http.StatusConflict, gin.H{"error": "User already exists"})
+		app.conflict(c, "user already exists")
 		return
 	}
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(register.Password), bcrypt.DefaultCost)
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "something went wrong"})
+		app.internalServerError(c, err, "something went wrong")
 		return
 	}
 
@@ -105,7 +105,7 @@ func (app *application) registerUser(c *gin.Context) {
 
 	err = app.store.Users.Insert(ctx, &user)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not create user"})
+		app.internalServerError(c, err, "could not create user")
 		return
 	}
 	c.JSON(http.StatusCreated, user)

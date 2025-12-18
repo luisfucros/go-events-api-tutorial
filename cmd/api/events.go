@@ -32,7 +32,7 @@ func (app *application) createEvent(c *gin.Context) {
 	var event store.Event
 
 	if err := c.ShouldBindJSON(&event); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		app.badRequest(c, err, "bad request")
 		return
 	}
 	
@@ -42,7 +42,7 @@ func (app *application) createEvent(c *gin.Context) {
 	err := app.store.Events.Insert(ctx, &event)
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		app.internalServerError(c, err, "failed to create event")
 		return
 	}
 
@@ -74,7 +74,7 @@ func (app *application) getAllEvents(c *gin.Context) {
 	events, err := app.store.Events.GetAll(ctx)
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve events"})
+		app.internalServerError(c, err, "failed to retrieve events")
 		return
 	}
 
@@ -109,7 +109,7 @@ func (app *application) getEvent(c *gin.Context) {
 	id, err := strconv.ParseInt(idParam, 10, 64)
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid event ID"})
+		app.badRequest(c, err, "invalid event id")
 		return
 	}
 
@@ -122,12 +122,12 @@ func (app *application) getEvent(c *gin.Context) {
 	event, err := app.store.Events.Get(ctx, id)
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve event"})
+		app.internalServerError(c, err, "failed to retrieve event")
 		return
 	}
 
 	if event == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Event not found"})
+		app.notFound(c, "event not found")
 		return
 	}
 
@@ -163,7 +163,7 @@ func (app *application) updateEvent(c *gin.Context) {
 	id, err := strconv.ParseInt(idParam, 10, 64)
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid event ID"})
+		app.badRequest(c, err, "invalid event id")
 		return
 	}
 
@@ -171,31 +171,31 @@ func (app *application) updateEvent(c *gin.Context) {
 	existingEvent, err := app.store.Events.Get(ctx, id)
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Something went wrong"})
+		app.internalServerError(c, err, "something went wrong")
 		return
 	}
 
 	if existingEvent == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Event not found"})
+		app.notFound(c, "event not found")
 		return
 	}
 
 	if existingEvent.OwnerId != user.Id {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Not authorized to update this event"})
+		app.forbidden(c, "not authorized to update this event")
 		return
 	}
 
 	updatedEvent := &store.Event{}
 
 	if err := c.ShouldBindBodyWithJSON(updatedEvent); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		app.badRequest(c, err, "something went wrong")
 		return
 	}
 
 	updatedEvent.Id = id
 
 	if err := app.store.Events.Update(ctx, updatedEvent); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update event"})
+		app.internalServerError(c, err, "failed to update event")
 		return
 	}
 
@@ -228,28 +228,29 @@ func (app *application) deleteEvent(c *gin.Context) {
 	id, err := strconv.ParseInt(idParam, 10, 64)
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid event ID"})
+		app.badRequest(c, err, "invalid event id")
 	}
 
 	user := app.GetUserFromContext(c)
 	existingEvent, err := app.store.Events.Get(ctx, id)
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve event"})
+		app.internalServerError(c, err, "failed to retrieve event")
 		return
 	}
 	if existingEvent == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Event not found"})
+		app.notFound(c, "event not found")
 		return
 	}
 
 	if existingEvent.OwnerId != user.Id {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Not authorized to delete this event"})
+		app.forbidden(c, "")
 		return
 	}
 
 	if err := app.store.Events.Delete(ctx, id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete event"})
+		app.internalServerError(c, err, "failed to delete event")
+		return
 	}
 
 	// ---- CACHE INVALIDATIONS ----
@@ -265,50 +266,50 @@ func (app *application) addAttendeeToEvent(c *gin.Context) {
 	idParam := c.Param("id")
 	eventId, err := strconv.ParseInt(idParam, 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid event ID"})
+		app.badRequest(c, err, "invalid event id")
 		return
 	}
 
 	idParam = c.Param("userId")
 	userId, err := strconv.ParseInt(idParam, 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		app.badRequest(c, err, "invalid user id")
 		return
 	}
 
 	event, err := app.store.Events.Get(ctx, eventId)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve event"})
+		app.internalServerError(c, err, "failed to retrieve event")
 		return
 	}
 	if event == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Event not found"})
+		app.notFound(c, "event not found")
 		return
 	}
 
 	userToAdd, err := app.store.Users.Get(ctx, userId)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve user"})
+		app.internalServerError(c, err, "failed to retrieve user")
 		return
 	}
 	if userToAdd == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		app.notFound(c, "user not found")
 		return
 	}
 
 	user := app.GetUserFromContext(c)
 	if event.OwnerId != user.Id {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Not authorized to add an attendee"})
+		app.forbidden(c, "not authorized to add an attendee")
 		return
 	}
 
 	existingAttendee, err := app.store.Attendees.GetByEventAndAttendee(ctx, event.Id, userToAdd.Id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve attendee"})
+		app.internalServerError(c, err, "failed to retrieve attendee")
 		return
 	}
 	if existingAttendee != nil {
-		c.JSON(http.StatusConflict, gin.H{"error": "Attendee already exists"})
+		app.conflict(c, "Attendee already exists")
 		return
 	}
 
@@ -319,7 +320,7 @@ func (app *application) addAttendeeToEvent(c *gin.Context) {
 
 	_, err = app.store.Attendees.Insert(ctx, &attendee)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add attendee to event"})
+		app.internalServerError(c, err, "failed to add attendee to event")
 		return
 	}
 
@@ -337,7 +338,7 @@ func (app *application) getAttendeesForEvent(c *gin.Context) {
 	idParam := c.Param("id")
 	eventId, err := strconv.ParseInt(idParam, 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid event ID"})
+		app.badRequest(c, err, "invalid event id")
 		return
 	}
 
@@ -349,7 +350,7 @@ func (app *application) getAttendeesForEvent(c *gin.Context) {
 
 	users, err := app.store.Attendees.GetAttendeesByEvent(ctx, eventId)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve attendees for event"})
+		app.internalServerError(c, err, "failed to retrieve attendees for event")
 		return
 	}
 
@@ -371,14 +372,14 @@ func (app *application) deleteAttendeeFromEvent(c *gin.Context) {
 	idParam := c.Param("id")
 	eventId, err := strconv.ParseInt(idParam, 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid event ID"})
+		app.badRequest(c, err, "invalid event id")
 		return
 	}
 
 	idParam = c.Param("userId")
 	userId, err := strconv.ParseInt(idParam, 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		app.badRequest(c, err, "invalid user id")
 		return
 	}
 
@@ -386,23 +387,23 @@ func (app *application) deleteAttendeeFromEvent(c *gin.Context) {
 	event, err := app.store.Events.Get(ctx, eventId)
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve event"})
+		app.internalServerError(c, err, "failed to retrieve event")
 		return
 	}
 
 	if event == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Event not found"})
+		app.notFound(c, "event not found")
 		return
 	}
 
 	if event.OwnerId != user.Id {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Not authorized to delete an attendee from event"})
+		app.forbidden(c, "not authorized to delete an attendee from event")
 		return
 	}
 
 	err = app.store.Attendees.Delete(ctx, userId, eventId)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete attendee"})
+		app.internalServerError(c, err, "failed to delete attendee")
 		return
 	}
 
@@ -420,7 +421,7 @@ func (app *application) getEventsByAttendee(c *gin.Context) {
 	idParam := c.Param("id")
 	id, err := strconv.ParseInt(idParam, 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid attendee ID"})
+		app.badRequest(c, err, "invalid attendee id")
 		return
 	}
 
@@ -432,7 +433,7 @@ func (app *application) getEventsByAttendee(c *gin.Context) {
 
 	events, err := app.store.Attendees.GetEventsByAttendee(ctx, id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get events"})
+		app.internalServerError(c, err, "failed to get events")
 		return
 	}
 
