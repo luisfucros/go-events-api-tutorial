@@ -9,18 +9,34 @@ import (
 )
 
 type Config struct {
-	PublicHost             string
-	Port                   int64
-	DBUser                 string
-	DBPassword             string
-	DBAddress              string
-	DBName                 string
-	JWTSecret              string
-	JWTExpirationInSeconds int64
-	REDISAddr              string
-	REDISPW                string
-	REDISDB                int
-	REDISEnabled           bool
+	Server ServerConfig
+	DB     DatabaseConfig
+	JWT    JWTConfig
+	Redis  RedisConfig
+}
+
+type ServerConfig struct {
+	PublicHost string
+	Port       int64
+}
+
+type DatabaseConfig struct {
+	User     string
+	Password string
+	Address  string
+	Name     string
+}
+
+type JWTConfig struct {
+	Secret              string
+	ExpirationInSeconds int64
+}
+
+type RedisConfig struct {
+	Addr    string
+	Password string
+	DB      int
+	Enabled bool
 }
 
 var Envs = initConfig()
@@ -29,18 +45,30 @@ func initConfig() Config {
 	godotenv.Load()
 
 	return Config{
-		PublicHost:             getEnv("PUBLIC_HOST", "http://localhost"),
-		Port:                   getEnvAsInt("PORT", 8080),
-		DBUser:                 getEnv("DB_USER", "root"),
-		DBPassword:             getEnv("DB_PASSWORD", "events_password"),
-		DBAddress:              fmt.Sprintf("%s:%s", getEnv("DB_HOST", "127.0.0.1"), getEnv("DB_PORT", "3306")),
-		DBName:                 getEnv("DB_NAME", "events"),
-		JWTSecret:              getEnv("JWT_SECRET", "super-secret"),
-		JWTExpirationInSeconds: getEnvAsInt("JWT_EXPIRATION_IN_SECONDS", 3600*24*7),
-		REDISAddr:              getEnv("REDIS_ADDR", "localhost:6379"),
-		REDISPW:                getEnv("REDIS_PW", ""),
-		REDISDB:                int(getEnvAsInt("REDIS_DB", 0)),
-		REDISEnabled:           getEnvAsBool("REDIS_ENABLED", false),
+		Server: ServerConfig{
+			PublicHost: getEnv("PUBLIC_HOST", "http://localhost"),
+			Port:       getEnvAsInt("PORT", 8080),
+		},
+		DB: DatabaseConfig{
+			User:     getEnv("DB_USER", "root"),
+			Password: getEnv("DB_PASSWORD", "events_password"),
+			Address: fmt.Sprintf(
+				"%s:%s",
+				getEnv("DB_HOST", "127.0.0.1"),
+				getEnv("DB_PORT", "3306"),
+			),
+			Name: getEnv("DB_NAME", "events"),
+		},
+		JWT: JWTConfig{
+			Secret:              getEnv("JWT_SECRET", "super-secret"),
+			ExpirationInSeconds: getEnvAsInt("JWT_EXPIRATION_IN_SECONDS", 3600*24*7),
+		},
+		Redis: RedisConfig{
+			Addr:     getEnv("REDIS_ADDR", "localhost:6379"),
+			Password: getEnv("REDIS_PW", ""),
+			DB:       int(getEnvAsInt("REDIS_DB", 0)),
+			Enabled:  getEnvAsBool("REDIS_ENABLED", false),
+		},
 	}
 }
 

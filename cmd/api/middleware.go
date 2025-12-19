@@ -1,7 +1,6 @@
 package main
 
 import (
-	"net/http"
 	"strings"
 	"context"
 	"time"
@@ -9,7 +8,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 
-	"github.com/luisfucros/go-events-api-tutorial/internal/configs"
 	"github.com/luisfucros/go-events-api-tutorial/internal/store"
 
 )
@@ -37,7 +35,7 @@ func (app *application) AuthMiddleware() gin.HandlerFunc {
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, jwt.ErrSignatureInvalid
 			}
-			return []byte(app.JWTSecret), nil
+			return []byte(app.config.JWT.Secret), nil
 		})
 		if err != nil || !token.Valid {
 			app.unauthorized(c, "invalid token")
@@ -68,7 +66,7 @@ func (app *application) AuthMiddleware() gin.HandlerFunc {
 }
 
 func (app *application) getUser(ctx context.Context, userId int64) (*store.User, error) {
-	if !configs.Envs.REDISEnabled {
+	if !app.config.Redis.Enabled {
 		return app.store.Users.Get(ctx, int64(userId))
 	}
 

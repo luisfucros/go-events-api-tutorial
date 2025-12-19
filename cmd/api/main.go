@@ -21,8 +21,7 @@ import (
 // @description Enter your bearer token in the format **Bearer &lt;token&gt;**
 
 type application struct {
-	port          int64
-	JWTSecret     string
+	config		  configs.Config
 	store         store.Storage
 	cacheStorage  cache.Storage
 	logger       *zap.SugaredLogger
@@ -36,10 +35,10 @@ func main() {
 
 	// DB
 	cfg := mysqlDriver.Config{
-		User:                 configs.Envs.DBUser,
-		Passwd:               configs.Envs.DBPassword,
-		Addr:                 configs.Envs.DBAddress,
-		DBName:               configs.Envs.DBName,
+		User:                 configs.Envs.DB.User,
+		Passwd:               configs.Envs.DB.Password,
+		Addr:                 configs.Envs.DB.Address,
+		DBName:               configs.Envs.DB.Name,
 		Net:                  "tcp",
 		AllowNativePasswords: true,
 		ParseTime:            true,
@@ -53,10 +52,13 @@ func main() {
 
 	// Redis
 	var rdb *redis.Client
-	if configs.Envs.REDISEnabled {
-		rdb = cache.NewRedisClient(configs.Envs.REDISAddr, configs.Envs.REDISPW, configs.Envs.REDISDB)
+	if configs.Envs.Redis.Enabled {
+		rdb = cache.NewRedisClient(
+			configs.Envs.Redis.Addr,
+			configs.Envs.Redis.Password,
+			configs.Envs.Redis.DB,
+		)
 		logger.Info("redis cache connection established")
-
 		defer rdb.Close()
 	}
 	
@@ -65,8 +67,7 @@ func main() {
 	cacheStorage := cache.NewRedisStorage(rdb)
 
 	app := &application{
-		port:         configs.Envs.Port,
-		JWTSecret:    configs.Envs.JWTSecret,
+		config:       configs.Envs,
 		store:        storage,
 		cacheStorage: cacheStorage,
 		logger:       logger,

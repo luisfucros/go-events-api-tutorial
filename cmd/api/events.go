@@ -8,7 +8,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/luisfucros/go-events-api-tutorial/internal/store"
-	"github.com/luisfucros/go-events-api-tutorial/internal/configs"
 )
 
 // createEvent creates a new event
@@ -449,7 +448,7 @@ func (app *application) getEventsByAttendee(c *gin.Context) {
 }
 
 func (app *application) cacheGetAllEvents(ctx context.Context) ([]store.Event, bool) {
-    if !configs.Envs.REDISEnabled {
+    if !app.config.Redis.Enabled {
         return nil, false
     }
     list, err := app.cacheStorage.Events.GetAll(ctx)
@@ -460,14 +459,14 @@ func (app *application) cacheGetAllEvents(ctx context.Context) ([]store.Event, b
 }
 
 func (app *application) cacheSetAllEvents(ctx context.Context, events []store.Event) {
-    if !configs.Envs.REDISEnabled {
+    if !app.config.Redis.Enabled {
         return
     }
     _ = app.cacheStorage.Events.SetAll(ctx, events)
 }
 
 func (app *application) cacheGetEvent(ctx context.Context, id int64) (*store.Event, bool) {
-    if !configs.Envs.REDISEnabled {
+    if !app.config.Redis.Enabled {
         return nil, false
     }
     cached, err := app.cacheStorage.Events.Get(ctx, id)
@@ -478,14 +477,14 @@ func (app *application) cacheGetEvent(ctx context.Context, id int64) (*store.Eve
 }
 
 func (app *application) cacheSetEvent(ctx context.Context, event *store.Event) {
-    if !configs.Envs.REDISEnabled {
+    if !app.config.Redis.Enabled {
         return
     }
     _ = app.cacheStorage.Events.Set(ctx, event)
 }
 
 func (app *application) cacheInvalidateEvent(ctx context.Context, id int64) {
-    if !configs.Envs.REDISEnabled {
+    if !app.config.Redis.Enabled {
         return
     }
     app.cacheStorage.Events.Delete(ctx, id)
@@ -497,7 +496,7 @@ func (app *application) cacheGetAttendeesByEvent(
 	eventID int64,
 ) ([]store.User, bool) {
 
-	if !configs.Envs.REDISEnabled {
+	if !app.config.Redis.Enabled {
 		return nil, false
 	}
 
@@ -514,7 +513,7 @@ func (app *application) cacheSetAttendeesByEvent(
 	eventID int64,
 	users []store.User,
 ) {
-	if !configs.Envs.REDISEnabled {
+	if !app.config.Redis.Enabled {
 		return
 	}
 	_ = app.cacheStorage.Attendees.SetAttendeesByEvent(ctx, eventID, users)
@@ -524,7 +523,7 @@ func (app *application) cacheInvalidateAttendeesByEvent(
 	ctx context.Context,
 	eventID int64,
 ) {
-	if !configs.Envs.REDISEnabled {
+	if !app.config.Redis.Enabled {
 		return
 	}
 	app.cacheStorage.Attendees.DeleteAttendeesByEvent(ctx, eventID)
@@ -535,7 +534,7 @@ func (app *application) cacheGetEventsByAttendee(
 	userID int64,
 ) ([]store.Event, bool) {
 
-	if !configs.Envs.REDISEnabled {
+	if !app.config.Redis.Enabled {
 		return nil, false
 	}
 
@@ -552,7 +551,7 @@ func (app *application) cacheSetEventsByAttendee(
 	userID int64,
 	events []store.Event,
 ) {
-	if !configs.Envs.REDISEnabled {
+	if !app.config.Redis.Enabled {
 		return
 	}
 	_ = app.cacheStorage.Attendees.SetEventsByAttendee(ctx, userID, events)
@@ -562,7 +561,7 @@ func (app *application) cacheInvalidateEventsByAttendee(
 	ctx context.Context,
 	userID int64,
 ) {
-	if !configs.Envs.REDISEnabled {
+	if !app.config.Redis.Enabled {
 		return
 	}
 	app.cacheStorage.Attendees.DeleteEventsByAttendee(ctx, userID)

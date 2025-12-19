@@ -59,7 +59,7 @@ func (app *application) login(c *gin.Context) {
 		"expr":   time.Now().Add(time.Hour * 72).Unix(),
 	})
 
-	tokenString, err := token.SignedString([]byte(app.JWTSecret))
+	tokenString, err := token.SignedString([]byte(app.config.JWT.Secret))
 	if err != nil {
 		app.internalServerError(c, err, "error generating token")
 		return
