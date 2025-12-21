@@ -11,28 +11,22 @@ services:
     environment:
       GIN_MODE: release
     depends_on:
-      migrate:
-        condition: service_completed_successfully
-      db:
-        condition: service_healthy
-  migrate:
-    image: alpine:3.19
-    depends_on:
-      db:
-        condition: service_healthy
-    volumes:
-      - ./cmd/migrate/migrations:/migrations
-    entrypoint: >
-      sh -c "
-      apk add --no-cache curl ca-certificates &&
-      curl -L https://github.com/golang-migrate/migrate/releases/latest/download/migrate.linux-amd64.tar.gz | tar xz &&
-      mv migrate /usr/local/bin/migrate &&
-      migrate -path=/migrations -database 'mysql://root:events_password@tcp(db:3306)/events' -verbose up
-      "
+      - db
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
   db:
     image: mysql:8.0
     healthcheck:
-      test: "exit 0"
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-pevents_password"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     volumes:
       - db_data:/var/lib/mysql
     ports:

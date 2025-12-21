@@ -2,43 +2,41 @@ FROM golang:1.24-alpine AS builder
 
 RUN apk add --no-cache git
 
-WORKDIR /app
+WORKDIR /src
 
 COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
 
-# Build the binary
+# Build the binary with flags to reduce size
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-    go build -o app ./cmd/api
+    go build -trimpath -ldflags "-s -w" -o /usr/local/bin/app ./cmd/api
 
 FROM alpine:3.19 AS final
 
-# Set environment variable to ensure Gin runs in release mode for performance/security
-ENV GIN_MODE release
+# Set environment variable to ensure Gin runs in release mode (performance/security)
+ENV GIN_MODE=release
+ENV MIGRATE_VERSION=v4.16.0
 
-RUN apk add --no-cache \
-    ca-certificates \
-    curl \
- && adduser -D -g '' appuser
+# Install runtime deps and migrate; keep it to one layer
+RUN apk add --no-cache ca-certificates curl mysql-client \
+ && adduser -D -g '' appuser \
+ && curl -L "https://github.com/golang-migrate/migrate/releases/download/${MIGRATE_VERSION}/migrate.linux-amd64.tar.gz" \
+    | tar xz && mv migrate /usr/local/bin/migrate
 
-RUN apk add --no-cache curl ca-certificates \
-&& curl -L https://github.com/golang-migrate/migrate/releases/latest/download/migrate.linux-amd64.tar.gz \
-| tar xz \
-&& mv migrate /usr/local/bin/migrate
-
- # Set the working directory
 WORKDIR /app
 
-# Copy the compiled binary from the builder stage
-COPY --from=builder /app/app ./
-COPY ./cmd/migrate/migrations ./cmd/migrate/migrations
+# Copy binary and migrations
+COPY --from=builder /usr/local/bin/app /usr/local/bin/app
+COPY ./cmd/migrate/migrations /migrations
+COPY scripts/entrypoint.sh /usr/local/bin/entrypoint.sh
 
-# Expose the port your Gin application listens on (default is 8080)
+RUN chmod +x /usr/local/bin/entrypoint.sh \
+ && chown -R appuser:appuser /migrations /usr/local/bin/app
+
 EXPOSE 8080
 
 USER appuser
 
-# Command to run the executable when the container starts
-ENTRYPOINT ["./app"]
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
