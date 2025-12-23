@@ -15,10 +15,10 @@ import (
 
 func main() {
 	cfg := mysqlDriver.Config{
-		User:                 configs.Envs.DBUser,
-		Passwd:               configs.Envs.DBPassword,
-		Addr:                 configs.Envs.DBAddress,
-		DBName:               configs.Envs.DBName,
+		User:                 configs.Envs.DB.User,
+		Passwd:               configs.Envs.DB.Password,
+		Addr:                 configs.Envs.DB.Address,
+		DBName:               configs.Envs.DB.Name,
 		Net:                  "tcp",
 		AllowNativePasswords: true,
 		ParseTime:            true,
