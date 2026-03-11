@@ -24,6 +24,7 @@ type application struct {
 	config		  configs.Config
 	store         store.Storage
 	cacheStorage  cache.Storage
+	redisClient  *redis.Client
 	logger       *zap.SugaredLogger
 }
 
@@ -70,6 +71,7 @@ func main() {
 		config:       configs.Envs,
 		store:        storage,
 		cacheStorage: cacheStorage,
+		redisClient:  rdb,
 		logger:       logger,
 	}
 

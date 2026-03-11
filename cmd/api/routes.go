@@ -27,6 +27,7 @@ func (app *application) routes() http.Handler {
 
 	authGroup := v1.Group("/")
 	authGroup.Use(app.AuthMiddleware())
+	authGroup.Use(app.UserRateLimiter())
 	{
 		authGroup.POST("/events", app.createEvent)
 		authGroup.PUT("/events/:id", app.updateEvent)
