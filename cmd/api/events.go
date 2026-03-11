@@ -235,6 +235,7 @@ func (app *application) deleteEvent(c *gin.Context) {
 
 	if err != nil {
 		app.badRequest(c, err, "invalid event id")
+		return
 	}
 
 	user := app.GetUserFromContext(c)
@@ -250,7 +251,7 @@ func (app *application) deleteEvent(c *gin.Context) {
 	}
 
 	if existingEvent.OwnerId != user.Id {
-		app.forbidden(c, "")
+		app.forbidden(c, "not authorized to delete this event")
 		return
 	}
 
