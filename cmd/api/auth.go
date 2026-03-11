@@ -54,9 +54,10 @@ func (app *application) login(c *gin.Context) {
 		return
 	}
 
+	expiration := time.Duration(app.config.JWT.ExpirationInSeconds) * time.Second
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"userId": existingUser.Id,
-		"expr":   time.Now().Add(time.Hour * 72).Unix(),
+		"exp":    time.Now().Add(expiration).Unix(),
 	})
 
 	tokenString, err := token.SignedString([]byte(app.config.JWT.Secret))
