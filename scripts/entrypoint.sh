@@ -12,9 +12,9 @@ until mysqladmin ping -h "$DB_HOST" -uroot -p"$MYSQL_ROOT_PASSWORD" --silent; do
   sleep 1
 done
 
-# Run migrations (non-fatal if already applied)
+# Run migrations
 echo "Running migrations..."
-/usr/local/bin/migrate -path=/migrations -database "mysql://root:${MYSQL_ROOT_PASSWORD}@tcp(${DB_HOST}:3306)/${MYSQL_DATABASE}" -verbose up || true
+/usr/local/bin/migrate -path=/migrations -database "mysql://root:${MYSQL_ROOT_PASSWORD}@tcp(${DB_HOST}:3306)/${MYSQL_DATABASE}" -verbose up
 
 # Start the app
 exec /usr/local/bin/app
