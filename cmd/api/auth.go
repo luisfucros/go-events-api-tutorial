@@ -18,8 +18,8 @@ type registerRequest struct {
 }
 
 type loginRequest struct {
-	Email    string `json:"email" binding:"required,email"`
-	Password string `json:"password" binding:"required,min=8,max=72"`
+	Email    string `json:"email" form:"email" binding:"required,email"`
+	Password string `json:"password" form:"password" binding:"required,min=8,max=72"`
 }
 
 type loginResponse struct {
@@ -32,7 +32,7 @@ func (app *application) login(c *gin.Context) {
 
 	var auth loginRequest
 
-	if err := c.ShouldBindJSON(&auth); err != nil {
+	if err := c.ShouldBind(&auth); err != nil {
 		app.badRequest(c, err, "invalid format")
 		return
 	}
