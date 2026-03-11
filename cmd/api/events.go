@@ -34,7 +34,10 @@ func (app *application) createEvent(c *gin.Context) {
 		app.badRequest(c, err, "bad request")
 		return
 	}
-	
+
+	if event.Date == "" {
+		event.Date = time.Now().Format("2006-01-02")
+	}
 
 	user := app.GetUserFromContext(c)
 	event.OwnerId = user.Id
@@ -189,6 +192,10 @@ func (app *application) updateEvent(c *gin.Context) {
 	if err := c.ShouldBindBodyWithJSON(updatedEvent); err != nil {
 		app.badRequest(c, err, "something went wrong")
 		return
+	}
+
+	if updatedEvent.Date == "" {
+		updatedEvent.Date = time.Now().Format("2006-01-02")
 	}
 
 	updatedEvent.Id = id
