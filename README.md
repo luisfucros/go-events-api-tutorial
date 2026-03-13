@@ -10,6 +10,24 @@
 - Build and run the stack: `docker-compose up --build`
 - The API container will wait for the database and run `migrate up` automatically on start.
 
+### Testing
+
+Run all tests:
+```bash
+go test ./...
+```
+
+Run with verbose output to see each test name:
+```bash
+go test ./... -v
+```
+
+Run tests for a specific package:
+```bash
+go test ./cmd/api/...         # handler/integration tests
+go test ./internal/store/...  # store unit tests
+```
+
 ### Notes
 
 - For local dev we still use the root password from `.env` (do not commit secrets). For production, prefer secrets managers or Docker secrets.
