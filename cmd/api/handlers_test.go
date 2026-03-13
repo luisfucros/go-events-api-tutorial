@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -377,4 +378,250 @@ func TestGetAllEvents_CacheHit(t *testing.T) {
 	if err := json.Unmarshal(rw.Body.Bytes(), &resp); err != nil { t.Fatalf("invalid json: %v", err) }
 	if len(resp) != 1 || resp[0].Id != 3 { t.Fatalf("unexpected: %v", resp) }
 	ce.AssertExpectations(t)
+}
+
+func TestGetAllEvents_CacheMiss(t *testing.T) {
+	app := newTestApp()
+	app.config.Redis.Enabled = true
+	ce := app.cacheStorage.Events.(*mocks.MockCacheEvents)
+	ce.On("GetAll", mock.Anything).Return(nil, nil)
+	ce.On("SetAll", mock.Anything, mock.Anything).Return(nil)
+	me := app.store.Events.(*mocks.MockEvents)
+	me.On("GetAll", mock.Anything).Return([]*store.Event{{Id: 7, Name: "miss"}}, nil)
+
+	rw := performRequest(app, "GET", "/api/v1/events", nil, "")
+	if rw.Code != http.StatusOK { t.Fatalf("expected 200 got %d body=%s", rw.Code, rw.Body.String()) }
+	var resp []*store.Event
+	if err := json.Unmarshal(rw.Body.Bytes(), &resp); err != nil { t.Fatalf("invalid json: %v", err) }
+	if len(resp) != 1 || resp[0].Id != 7 { t.Fatalf("unexpected: %v", resp) }
+	me.AssertExpectations(t)
+	ce.AssertExpectations(t)
+}
+
+func TestGetAllEvents_InternalError(t *testing.T) {
+	app := newTestApp()
+	me := app.store.Events.(*mocks.MockEvents)
+	me.On("GetAll", mock.Anything).Return(nil, errors.New("db error"))
+
+	rw := performRequest(app, "GET", "/api/v1/events", nil, "")
+	if rw.Code != http.StatusInternalServerError { t.Fatalf("expected 500 got %d body=%s", rw.Code, rw.Body.String()) }
+	me.AssertExpectations(t)
+}
+
+func TestGetEvent_InternalError(t *testing.T) {
+	app := newTestApp()
+	me := app.store.Events.(*mocks.MockEvents)
+	me.On("Get", mock.Anything, int64(1)).Return(nil, errors.New("db error"))
+
+	rw := performRequest(app, "GET", "/api/v1/events/1", nil, "")
+	if rw.Code != http.StatusInternalServerError { t.Fatalf("expected 500 got %d body=%s", rw.Code, rw.Body.String()) }
+	me.AssertExpectations(t)
+}
+
+func TestCreateEvent_MissingFields(t *testing.T) {
+	app := newTestApp()
+	mu := app.store.Users.(*mocks.MockUsers)
+	mu.On("Get", mock.Anything, int64(1)).Return(&store.User{Id: 1}, nil)
+
+	token, _ := createToken(app.config.JWT.Secret, 1)
+	// name too short, description too short, no location
+	b, _ := json.Marshal(map[string]string{"name": "ab", "description": "short"})
+	rw := performRequest(app, "POST", "/api/v1/events", b, token)
+	if rw.Code != http.StatusBadRequest { t.Fatalf("expected 400 got %d body=%s", rw.Code, rw.Body.String()) }
+}
+
+func TestRegister_DuplicateEmail(t *testing.T) {
+	app := newTestApp()
+	mu := app.store.Users.(*mocks.MockUsers)
+	mu.On("GetByEmail", mock.Anything, "dup@example.com").Return(&store.User{Id: 1}, nil)
+
+	b, _ := json.Marshal(map[string]string{"email": "dup@example.com", "password": "password123", "name": "Test"})
+	rw := performRequest(app, "POST", "/api/v1/auth/register", b, "")
+	if rw.Code != http.StatusConflict { t.Fatalf("expected 409 got %d body=%s", rw.Code, rw.Body.String()) }
+	mu.AssertExpectations(t)
+}
+
+func TestRegister_InvalidInput(t *testing.T) {
+	app := newTestApp()
+	// bad email, short password, short name
+	b, _ := json.Marshal(map[string]string{"email": "not-an-email", "password": "123", "name": "T"})
+	rw := performRequest(app, "POST", "/api/v1/auth/register", b, "")
+	if rw.Code != http.StatusBadRequest { t.Fatalf("expected 400 got %d body=%s", rw.Code, rw.Body.String()) }
+}
+
+func TestLogin_WrongPassword(t *testing.T) {
+	app := newTestApp()
+	mu := app.store.Users.(*mocks.MockUsers)
+	hash, _ := bcrypt.GenerateFromPassword([]byte("correctpassword"), bcrypt.DefaultCost)
+	mu.On("GetByEmail", mock.Anything, "user@example.com").Return(&store.User{Id: 1, Email: "user@example.com", Password: string(hash)}, nil)
+
+	b, _ := json.Marshal(map[string]string{"email": "user@example.com", "password": "wrongpassword"})
+	rw := performRequest(app, "POST", "/api/v1/auth/login", b, "")
+	if rw.Code != http.StatusUnauthorized { t.Fatalf("expected 401 got %d body=%s", rw.Code, rw.Body.String()) }
+	mu.AssertExpectations(t)
+}
+
+func TestLogin_UserNotFound(t *testing.T) {
+	app := newTestApp()
+	mu := app.store.Users.(*mocks.MockUsers)
+	mu.On("GetByEmail", mock.Anything, "ghost@example.com").Return(nil, nil)
+
+	b, _ := json.Marshal(map[string]string{"email": "ghost@example.com", "password": "password123"})
+	rw := performRequest(app, "POST", "/api/v1/auth/login", b, "")
+	if rw.Code != http.StatusUnauthorized { t.Fatalf("expected 401 got %d body=%s", rw.Code, rw.Body.String()) }
+	mu.AssertExpectations(t)
+}
+
+func TestLogin_InvalidInput(t *testing.T) {
+	app := newTestApp()
+	b, _ := json.Marshal(map[string]string{"email": "bad-email"})
+	rw := performRequest(app, "POST", "/api/v1/auth/login", b, "")
+	if rw.Code != http.StatusBadRequest { t.Fatalf("expected 400 got %d body=%s", rw.Code, rw.Body.String()) }
+}
+
+func TestUpdateEvent_NotFound(t *testing.T) {
+	app := newTestApp()
+	mu := app.store.Users.(*mocks.MockUsers)
+	mu.On("Get", mock.Anything, int64(1)).Return(&store.User{Id: 1}, nil)
+	me := app.store.Events.(*mocks.MockEvents)
+	me.On("Get", mock.Anything, int64(1)).Return(nil, nil)
+
+	token, _ := createToken(app.config.JWT.Secret, 1)
+	b, _ := json.Marshal(map[string]string{"name": "updated", "description": "longer description", "location": "here"})
+	rw := performRequest(app, "PUT", "/api/v1/events/1", b, token)
+	if rw.Code != http.StatusNotFound { t.Fatalf("expected 404 got %d body=%s", rw.Code, rw.Body.String()) }
+	me.AssertExpectations(t)
+}
+
+func TestUpdateEvent_BadID(t *testing.T) {
+	app := newTestApp()
+	mu := app.store.Users.(*mocks.MockUsers)
+	mu.On("Get", mock.Anything, int64(1)).Return(&store.User{Id: 1}, nil)
+
+	token, _ := createToken(app.config.JWT.Secret, 1)
+	b, _ := json.Marshal(map[string]string{"name": "updated"})
+	rw := performRequest(app, "PUT", "/api/v1/events/abc", b, token)
+	if rw.Code != http.StatusBadRequest { t.Fatalf("expected 400 got %d body=%s", rw.Code, rw.Body.String()) }
+}
+
+func TestDeleteEvent_NotFound(t *testing.T) {
+	app := newTestApp()
+	mu := app.store.Users.(*mocks.MockUsers)
+	mu.On("Get", mock.Anything, int64(1)).Return(&store.User{Id: 1}, nil)
+	me := app.store.Events.(*mocks.MockEvents)
+	me.On("Get", mock.Anything, int64(1)).Return(nil, nil)
+
+	token, _ := createToken(app.config.JWT.Secret, 1)
+	rw := performRequest(app, "DELETE", "/api/v1/events/1", nil, token)
+	if rw.Code != http.StatusNotFound { t.Fatalf("expected 404 got %d body=%s", rw.Code, rw.Body.String()) }
+	me.AssertExpectations(t)
+}
+
+func TestDeleteEvent_BadID(t *testing.T) {
+	app := newTestApp()
+	mu := app.store.Users.(*mocks.MockUsers)
+	mu.On("Get", mock.Anything, int64(1)).Return(&store.User{Id: 1}, nil)
+
+	token, _ := createToken(app.config.JWT.Secret, 1)
+	rw := performRequest(app, "DELETE", "/api/v1/events/abc", nil, token)
+	if rw.Code != http.StatusBadRequest { t.Fatalf("expected 400 got %d body=%s", rw.Code, rw.Body.String()) }
+}
+
+func TestAddAttendee_EventNotFound(t *testing.T) {
+	app := newTestApp()
+	mu := app.store.Users.(*mocks.MockUsers)
+	mu.On("Get", mock.Anything, int64(1)).Return(&store.User{Id: 1}, nil)
+	me := app.store.Events.(*mocks.MockEvents)
+	me.On("Get", mock.Anything, int64(1)).Return(nil, nil)
+
+	token, _ := createToken(app.config.JWT.Secret, 1)
+	rw := performRequest(app, "POST", "/api/v1/events/1/attendees/2", nil, token)
+	if rw.Code != http.StatusNotFound { t.Fatalf("expected 404 got %d body=%s", rw.Code, rw.Body.String()) }
+	me.AssertExpectations(t)
+}
+
+func TestAddAttendee_UserNotFound(t *testing.T) {
+	app := newTestApp()
+	mu := app.store.Users.(*mocks.MockUsers)
+	mu.On("Get", mock.Anything, int64(1)).Return(&store.User{Id: 1}, nil)  // auth user
+	mu.On("Get", mock.Anything, int64(2)).Return(nil, nil)                  // user to add not found
+	me := app.store.Events.(*mocks.MockEvents)
+	me.On("Get", mock.Anything, int64(1)).Return(&store.Event{Id: 1, OwnerId: 1}, nil)
+
+	token, _ := createToken(app.config.JWT.Secret, 1)
+	rw := performRequest(app, "POST", "/api/v1/events/1/attendees/2", nil, token)
+	if rw.Code != http.StatusNotFound { t.Fatalf("expected 404 got %d body=%s", rw.Code, rw.Body.String()) }
+	me.AssertExpectations(t)
+	mu.AssertExpectations(t)
+}
+
+func TestAddAttendee_Forbidden(t *testing.T) {
+	app := newTestApp()
+	mu := app.store.Users.(*mocks.MockUsers)
+	mu.On("Get", mock.Anything, int64(1)).Return(&store.User{Id: 1}, nil)  // auth user
+	mu.On("Get", mock.Anything, int64(2)).Return(&store.User{Id: 2}, nil)  // user to add
+	me := app.store.Events.(*mocks.MockEvents)
+	me.On("Get", mock.Anything, int64(1)).Return(&store.Event{Id: 1, OwnerId: 99}, nil)  // owned by someone else
+
+	token, _ := createToken(app.config.JWT.Secret, 1)
+	rw := performRequest(app, "POST", "/api/v1/events/1/attendees/2", nil, token)
+	if rw.Code != http.StatusForbidden { t.Fatalf("expected 403 got %d body=%s", rw.Code, rw.Body.String()) }
+	me.AssertExpectations(t)
+	mu.AssertExpectations(t)
+}
+
+func TestGetAttendeesForEvent_BadID(t *testing.T) {
+	app := newTestApp()
+	rw := performRequest(app, "GET", "/api/v1/events/abc/attendees/", nil, "")
+	if rw.Code != http.StatusBadRequest { t.Fatalf("expected 400 got %d body=%s", rw.Code, rw.Body.String()) }
+}
+
+func TestGetAttendeesForEvent_CacheHit(t *testing.T) {
+	app := newTestApp()
+	app.config.Redis.Enabled = true
+	ca := app.cacheStorage.Attendees.(*mocks.MockCacheAttendees)
+	ca.On("GetAttendeesByEvent", mock.Anything, int64(1)).Return([]store.User{{Id: 10, Name: "cached"}}, nil)
+
+	rw := performRequest(app, "GET", "/api/v1/events/1/attendees/", nil, "")
+	if rw.Code != http.StatusOK { t.Fatalf("expected 200 got %d body=%s", rw.Code, rw.Body.String()) }
+	var resp []store.User
+	if err := json.Unmarshal(rw.Body.Bytes(), &resp); err != nil { t.Fatalf("invalid json: %v", err) }
+	if len(resp) != 1 || resp[0].Id != 10 { t.Fatalf("unexpected: %v", resp) }
+	ca.AssertExpectations(t)
+}
+
+func TestDeleteAttendeeFromEvent_NotFound(t *testing.T) {
+	app := newTestApp()
+	mu := app.store.Users.(*mocks.MockUsers)
+	mu.On("Get", mock.Anything, int64(1)).Return(&store.User{Id: 1}, nil)
+	me := app.store.Events.(*mocks.MockEvents)
+	me.On("Get", mock.Anything, int64(1)).Return(nil, nil)
+
+	token, _ := createToken(app.config.JWT.Secret, 1)
+	rw := performRequest(app, "DELETE", "/api/v1/events/1/attendees/2", nil, token)
+	if rw.Code != http.StatusNotFound { t.Fatalf("expected 404 got %d body=%s", rw.Code, rw.Body.String()) }
+	me.AssertExpectations(t)
+}
+
+func TestGetEventsByAttendee_BadID(t *testing.T) {
+	app := newTestApp()
+	rw := performRequest(app, "GET", "/api/v1/attendees/abc/events", nil, "")
+	if rw.Code != http.StatusBadRequest { t.Fatalf("expected 400 got %d body=%s", rw.Code, rw.Body.String()) }
+}
+
+func TestAuthMiddleware_InvalidToken(t *testing.T) {
+	app := newTestApp()
+	rw := performRequest(app, "POST", "/api/v1/events", nil, "invalid.token.here")
+	if rw.Code != http.StatusUnauthorized { t.Fatalf("expected 401 got %d body=%s", rw.Code, rw.Body.String()) }
+}
+
+func TestAuthMiddleware_ExpiredToken(t *testing.T) {
+	app := newTestApp()
+	expired := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"userId": float64(1),
+		"exp":    time.Now().Add(-time.Hour).Unix(),
+	})
+	token, _ := expired.SignedString([]byte(app.config.JWT.Secret))
+	rw := performRequest(app, "POST", "/api/v1/events", nil, token)
+	if rw.Code != http.StatusUnauthorized { t.Fatalf("expected 401 got %d body=%s", rw.Code, rw.Body.String()) }
 }
